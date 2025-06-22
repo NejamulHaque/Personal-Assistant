@@ -27,7 +27,7 @@ Flask-SQLAlchemy==3.1.1
 flask-mysqldb==1.0.1
 fpdf==1.7.2
 groq==0.28.0
-html2pdf==0.0.2
+html2pdf==0.1
 html5lib==1.1
 httpcore==1.0.7
 httpx==0.28.1

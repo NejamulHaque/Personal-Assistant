@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: ai-assistant
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    envVars:
+      - key: DB_HOST
+        value: sql5.freesqldatabase.com
+      - key: DB_USER
+        value: sql5786165
+      - key: DB_PASSWORD
+        value: AFih94Xv6L
+      - key: DB_NAME
+        value: sql5786165

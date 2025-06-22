@@ -319,3 +319,11 @@ websocket-client==1.8.0
 Werkzeug==3.1.3
 wikipedia==1.4.0
 xhtml2pdf==0.2.17
+flask
+flask-mysqldb
+flask-login
+mysql-connector-python
+flask_sqlalchemy
+python-dotenv
+html2pdf
+matplotlib

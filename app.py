@@ -68,6 +68,27 @@ def logout():
     session.pop("user", None)
     return redirect(url_for("login"))
 
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    if request.method == "POST":
+        username = request.form["username"]
+        new_password = request.form["new_password"]
+
+        cursor = get_cursor()
+        cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
+        user = cursor.fetchone()
+
+        if not user:
+            return render_template("forgot_password.html", error="Username not found.")
+
+        hashed_pw = bcrypt.hashpw(new_password.encode("utf-8"), bcrypt.gensalt())
+        cursor.execute("UPDATE users SET password = %s WHERE username = %s", (hashed_pw.decode("utf-8"), username))
+        get_db().commit()
+
+        return redirect(url_for("login"))
+
+    return render_template("forgot_password.html")
+
 # ----------- HOME / CHAT HISTORY -----------
 
 @app.route("/", methods=["GET", "POST"])

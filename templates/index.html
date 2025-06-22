@@ -1,49 +1,63 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Assistant Dashboard</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+    .chat-box {
+      border-left: 4px solid #0d6efd;
+      padding-left: 10px;
+    }
+    .timestamp {
+      font-size: 0.85rem;
+      color: #888;
+    }
+  </style>
 </head>
-<body class="p-4 bg-light">
-  <div class="container">
-    <h2 class="mb-3">🧠 Assistant Chat History</h2>
-    <div class="mb-3 d-flex justify-content-between">
-      <form method="post" class="d-flex gap-2">
-        <input type="text" name="search" class="form-control" placeholder="Search...">
-        <select name="filter" class="form-select w-auto">
-          <option value="">All</option>
-          <option value="last_24">Last 24h</option>
-          <option value="last_7">Last 7 Days</option>
-        </select>
-        <button class="btn btn-primary">Filter</button>
-      </form>
+<body>
+  <div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h2>Welcome, {{ session.user }}</h2>
       <div>
-        <a href="/export" class="btn btn-secondary me-2">📄 Export PDF</a>
-        <a href="/stats" class="btn btn-info me-2">📊 View Stats</a>
-        <a href="/logout" class="btn btn-danger">Logout</a>
+        <a href="/stats" class="btn btn-outline-primary btn-sm">📊 View Stats</a>
+        <a href="/export" class="btn btn-outline-success btn-sm">📄 Export PDF</a>
+        <a href="/logout" class="btn btn-outline-danger btn-sm">🚪 Logout</a>
       </div>
     </div>
-    <div class="table-responsive">
-      <table class="table table-striped table-bordered">
-        <thead class="table-dark">
-          <tr>
-            <th>Timestamp</th>
-            <th>User</th>
-            <th>Assistant</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in results %}
-            <tr>
-              <td>{{ row.timestamp }}</td>
-              <td>{{ row.user_input }}</td>
-              <td>{{ row.ai_response }}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+
+    <form method="POST" class="row g-2 mb-4">
+      <div class="col-md-6">
+        <input type="text" name="search" placeholder="Search history..." class="form-control" value="{{ request.form.search or '' }}">
+      </div>
+      <div class="col-md-4">
+        <select name="filter" class="form-select">
+          <option value="">All Time</option>
+          <option value="last_24" {% if request.form.filter == 'last_24' %}selected{% endif %}>Last 24 Hours</option>
+          <option value="last_7" {% if request.form.filter == 'last_7' %}selected{% endif %}>Last 7 Days</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-primary w-100">Search</button>
+      </div>
+    </form>
+
+    {% if results %}
+      <div class="list-group">
+        {% for row in results %}
+          <div class="list-group-item mb-2 shadow-sm">
+            <div class="timestamp mb-1">🕒 {{ row.timestamp.strftime('%Y-%m-%d %I:%M %p') }}</div>
+            <div><strong>You:</strong> {{ row.user_input }}</div>
+            <div class="chat-box mt-2"><strong>Assistant:</strong> {{ row.ai_response }}</div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="alert alert-info">No chat history found.</div>
+    {% endif %}
   </div>
 </body>
 </html>

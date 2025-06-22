@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, send_file
+from flask import Flask, render_template, request, redirect, url_for, session, send_file, g
 import mysql.connector
 from dotenv import load_dotenv
 import os
@@ -7,20 +7,42 @@ import bcrypt
 import io
 from xhtml2pdf import pisa
 
-# Load environment variables
+# Load .env variables
 load_dotenv()
 
+# Flask app config
 app = Flask(__name__)
-app.secret_key = os.getenv("FLASK_SECRET", "supersecret")
+FLASK_SECRET = os.getenv("FLASK_SECRET")
+if not FLASK_SECRET:
+    raise Exception("FLASK_SECRET is not set in .env file")
+app.secret_key = FLASK_SECRET
 
-# MySQL connector setup (not flask_mysqldb!)
-db = mysql.connector.connect(
-    host=os.getenv("MYSQL_HOST"),
-    user=os.getenv("MYSQL_USER"),
-    password=os.getenv("MYSQL_PASSWORD"),
-    database=os.getenv("MYSQL_DB")
-)
-cursor = db.cursor(dictionary=True)
+# ----------- DATABASE HANDLER -----------
+
+# Get DB connection with auto reconnect
+def get_db():
+    if "db" not in g or not g.db.is_connected():
+        g.db = mysql.connector.connect(
+            host=os.getenv("MYSQL_HOST"),
+            user=os.getenv("MYSQL_USER"),
+            password=os.getenv("MYSQL_PASSWORD"),
+            database=os.getenv("MYSQL_DB"),
+            autocommit=True
+        )
+    return g.db
+
+# Get cursor for queries
+def get_cursor():
+    return get_db().cursor(dictionary=True)
+
+# Close DB after request
+@app.teardown_appcontext
+def close_db(exception=None):
+    db = g.pop("db", None)
+    if db and db.is_connected():
+        db.close()
+
+# ----------- AUTH -----------
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -28,7 +50,8 @@ def login():
         username = request.form["username"]
         password = request.form["password"].encode("utf-8")
 
-        cursor.execute("SELECT * FROM users WHERE username=%s", (username,))
+        cursor = get_cursor()
+        cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
         user = cursor.fetchone()
 
         if user and bcrypt.checkpw(password, user["password"].encode("utf-8")):
@@ -39,10 +62,13 @@ def login():
 
     return render_template("login.html")
 
+
 @app.route("/logout")
 def logout():
     session.pop("user", None)
     return redirect(url_for("login"))
+
+# ----------- HOME / CHAT HISTORY -----------
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -51,9 +77,9 @@ def index():
 
     search = request.form.get("search")
     filter = request.form.get("filter")
-
     query = "SELECT * FROM chat_history"
     params = []
+    cursor = get_cursor()
 
     if search:
         query += " WHERE user_input LIKE %s OR ai_response LIKE %s"
@@ -73,32 +99,41 @@ def index():
 
     return render_template("index.html", results=results)
 
+# ----------- EXPORT TO PDF -----------
+
 @app.route("/export")
 def export_pdf():
     if "user" not in session:
         return redirect(url_for("login"))
 
+    cursor = get_cursor()
     cursor.execute("SELECT * FROM chat_history ORDER BY timestamp DESC")
     results = cursor.fetchall()
 
     rendered = render_template("export.html", results=results)
     pdf = io.BytesIO()
-    pisa.CreatePDF(io.StringIO(rendered), dest=pdf)
+    pisa.CreatePDF(io.BytesIO(rendered.encode("utf-8")), dest=pdf)
     pdf.seek(0)
+
     return send_file(pdf, as_attachment=True, download_name="chat_history.pdf")
+
+# ----------- STATS CHART -----------
 
 @app.route("/stats")
 def stats():
     if "user" not in session:
         return redirect(url_for("login"))
 
-    cursor.execute("SELECT DATE(timestamp) as date, COUNT(*) as count FROM chat_history GROUP BY DATE(timestamp)")
+    cursor = get_cursor()
+    cursor.execute("SELECT DATE(timestamp) AS date, COUNT(*) AS count FROM chat_history GROUP BY DATE(timestamp)")
     data = cursor.fetchall()
     dates = [row["date"].strftime("%Y-%m-%d") for row in data]
     counts = [row["count"] for row in data]
 
     return render_template("stats.html", dates=dates, counts=counts)
 
+# ----------- RUN FLASK APP -----------
+
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # Default to 5000 locally
+    port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)

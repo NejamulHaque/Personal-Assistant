@@ -13,3 +13,5 @@ services:
         value: AFih94Xv6L
       - key: DB_NAME
         value: sql5786165
+      - key: RENDER
+        value: true

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Assistant Dashboard</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+</head>
+<body class="p-4 bg-light">
+  <div class="container">
+    <h2 class="mb-3">🧠 Assistant Chat History</h2>
+    <div class="mb-3 d-flex justify-content-between">
+      <form method="post" class="d-flex gap-2">
+        <input type="text" name="search" class="form-control" placeholder="Search...">
+        <select name="filter" class="form-select w-auto">
+          <option value="">All</option>
+          <option value="last_24">Last 24h</option>
+          <option value="last_7">Last 7 Days</option>
+        </select>
+        <button class="btn btn-primary">Filter</button>
+      </form>
+      <div>
+        <a href="/export" class="btn btn-secondary me-2">📄 Export PDF</a>
+        <a href="/stats" class="btn btn-info me-2">📊 View Stats</a>
+        <a href="/logout" class="btn btn-danger">Logout</a>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-striped table-bordered">
+        <thead class="table-dark">
+          <tr>
+            <th>Timestamp</th>
+            <th>User</th>
+            <th>Assistant</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in results %}
+            <tr>
+              <td>{{ row.timestamp }}</td>
+              <td>{{ row.user_input }}</td>
+              <td>{{ row.ai_response }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>

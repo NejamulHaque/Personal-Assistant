@@ -1,0 +1,11 @@
+# Prevent uploading secrets to GitHub
+instance/.env
+.env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+*.sqlite3
+instance/
+.DS_Store

@@ -1,6 +1,46 @@
-import speech_recognition as sr
+import os
+
+IS_RENDER = os.environ.get("RENDER") == "true"
+
+if not IS_RENDER:
+    import speech_recognition as sr
+    import pyttsx3
+    engine = pyttsx3.init()
+
+    def speak(text):
+        engine.say(text)
+        engine.runAndWait()
+
+    def take_command():
+        recognizer = sr.Recognizer()
+        with sr.Microphone() as source:
+            print("Listening...")
+            recognizer.adjust_for_ambient_noise(source)
+            recognizer.pause_threshold = 1
+            audio = recognizer.listen(source)
+
+            try:
+                print("Recognizing...")
+                query = recognizer.recognize_google(audio, language='en-in')
+                print(f"Nejamul Haque: {query}")
+                return query.lower()
+            except sr.UnknownValueError:
+                print("Could not understand, skipping...")
+                return None
+            except sr.RequestError:
+                print("Could not request results; check your internet connection")
+                speak("I am having trouble connecting to the internet.")
+                return None
+else:
+    def speak(text):
+        print("Assistant:", text)
+
+    def take_command():
+        return input("Type your command: ")
+
+
 import json
-import pyttsx3
+
 import datetime
 import webbrowser
 import wikipedia
@@ -30,7 +70,6 @@ cursor = db.cursor()
 
 print("ASSISTANT IS READY TO USE")
 
-engine = pyttsx3.init()
 
 
 def speak(text):

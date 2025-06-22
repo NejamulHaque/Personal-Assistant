@@ -1,4 +1,31 @@
 import os
+import re
+import json
+import datetime
+import webbrowser
+import wikipedia
+import requests
+import pywhatkit
+import groq
+from dotenv import load_dotenv
+from groq import Groq
+import mysql.connector
+from datetime import datetime, timedelta
+
+# Load environment variables
+load_dotenv()
+
+# Groq API client
+client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+# MySQL connection
+db = mysql.connector.connect(
+    host=os.getenv("MYSQL_HOST"),
+    user=os.getenv("MYSQL_USER"),
+    password=os.getenv("MYSQL_PASSWORD"),
+    database=os.getenv("MYSQL_DB")
+)
+cursor = db.cursor()
 
 IS_RENDER = os.environ.get("RENDER") == "true"
 
@@ -38,66 +65,14 @@ else:
     def take_command():
         return input("Type your command: ")
 
-
-import json
-
-import datetime
-import webbrowser
-import wikipedia
-import os
-import requests
-import pywhatkit
-import groq
-from dotenv import load_dotenv
-from groq import Groq
-import mysql.connector
-from datetime import datetime, timedelta
-
-# Load environment variables
-load_dotenv()
-
-# Groq API client
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-
-# MySQL connection
-db = mysql.connector.connect(
-    host=os.getenv("MYSQL_HOST"),
-    user=os.getenv("MYSQL_USER"),
-    password=os.getenv("MYSQL_PASSWORD"),
-    database=os.getenv("MYSQL_DB")
-)
-cursor = db.cursor()
-
 print("ASSISTANT IS READY TO USE")
 
-
-
-def speak(text):
-    engine.say(text)
-    engine.runAndWait()
-
-
-def take_command():
-    recognizer = sr.Recognizer()
-    with sr.Microphone() as source:
-        print("Listening...")
-        recognizer.adjust_for_ambient_noise(source)
-        recognizer.pause_threshold = 1
-        audio = recognizer.listen(source)
-
-        try:
-            print("Recognizing...")
-            query = recognizer.recognize_google(audio, language='en-in')
-            print(f"Nejamul Haque: {query}")
-            return query.lower()
-        except sr.UnknownValueError:
-            print("Could not understand, skipping...")
-            return None
-        except sr.RequestError:
-            print("Could not request results; check your internet connection")
-            speak("I am having trouble connecting to the internet.")
-            return None
-
+def extract_city_name(query):
+    match = re.search(r'weather\s+(in|at|for)?\s*([a-zA-Z\s]+)', query, re.IGNORECASE)
+    if match:
+        city = match.group(2).strip()
+        return city
+    return None
 
 def greet():
     hour = int(datetime.now().hour)
@@ -108,7 +83,6 @@ def greet():
     else:
         speak("Good evening!")
     speak("I am your personal assistant. How can I help you, Nejamul?")
-
 
 def chat_with_gpt_context(user_input):
     try:
@@ -127,9 +101,7 @@ def chat_with_gpt_context(user_input):
         speak("Sorry, something went wrong while talking to the AI.")
         return "Error"
 
-
 API_KEY = os.getenv("OPENWEATHER_API")
-
 
 def get_weather(city="Delhi"):
     url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={API_KEY}&units=metric"
@@ -141,24 +113,20 @@ def get_weather(city="Delhi"):
             temperature = data["main"]["temp"]
             return f"The weather in {city} is {weather} with a temperature of {temperature}°C."
         else:
-            return "Sorry, I couldn't fetch the weather. Please check the city name."
+            return f"⚠️ Sorry, couldn't fetch weather for '{city}'. Check the city name."
     except requests.exceptions.RequestException:
         return "There was an issue fetching the weather. Please check your internet connection."
-
 
 def search_google(query):
     url = f"https://www.google.com/search?q={query.replace(' ', '+')}"
     webbrowser.open(url)
     speak(f"Here are the search results for {query}.")
 
-
 def play_youtube(song):
     speak(f"Playing {song} on YouTube.")
     pywhatkit.playonyt(song)
 
-
 MEMORY_FILE = "memory.json"
-
 
 def load_memory():
     try:
@@ -167,22 +135,18 @@ def load_memory():
     except FileNotFoundError:
         return {}
 
-
 def save_memory(memory):
     with open(MEMORY_FILE, "w", encoding='utf-8') as file:
         json.dump(memory, file)
-
 
 def remember_something(key, value):
     memory = load_memory()
     memory[key.lower()] = value
     save_memory(memory)
 
-
 def recall_something(key):
     memory = load_memory()
     return memory.get(key.lower(), None)
-
 
 def log_chat(user_input, ai_response):
     try:
@@ -191,7 +155,6 @@ def log_chat(user_input, ai_response):
         db.commit()
     except Exception as e:
         print(f"Error saving to database: {e}")
-
 
 def recall_previous_queries(hours=24):
     try:
@@ -208,7 +171,6 @@ def recall_previous_queries(hours=24):
         print(f"Error recalling memory: {e}")
         speak("I couldn't recall your recent memory.")
 
-
 def perform_task(query):
     if query is None:
         return False
@@ -218,12 +180,10 @@ def perform_task(query):
         return True
 
     elif 'weather' in query:
-        words = query.split()
-        if 'in' in words:
-            city_index = words.index('in') + 1
-            if city_index < len(words):
-                city = words[city_index]
-                speak(get_weather(city))
+        city = extract_city_name(query)
+        if city:
+            speak(f"Getting weather for {city}.")
+            speak(get_weather(city))
         else:
             speak("Fetching the weather for Delhi.")
             speak(get_weather())
@@ -321,7 +281,6 @@ def perform_task(query):
 
     return False
 
-
 def main():
     greet()
     while True:
@@ -343,9 +302,7 @@ def main():
                         speak(response)
                         log_chat(query, response)
 
-
 def ask_assistant(message):
-    # Optional: Log message to terminal or database
     response = chat_with_gpt_context(message)
     log_chat(message, response)
     return response

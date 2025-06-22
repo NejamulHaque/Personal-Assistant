@@ -1,44 +1,22 @@
-from flask import Flask, render_template, request, redirect, url_for, session, send_file, g
-import mysql.connector
+from flask import Flask, render_template, request, redirect, url_for, session, send_file, g, jsonify
 from dotenv import load_dotenv
+import mysql.connector
 import os
 from datetime import datetime, timedelta
 import bcrypt
 import io
 from xhtml2pdf import pisa
-from flask import jsonify
 from assistant_core import ask_assistant
 
-# Load .env variables
+# Load environment variables
 load_dotenv()
 
-# Flask app config
+# Flask config
 app = Flask(__name__)
-FLASK_SECRET = os.getenv("FLASK_SECRET")
-if not FLASK_SECRET:
-    raise Exception("FLASK_SECRET is not set in .env file")
-app.secret_key = FLASK_SECRET
+app.secret_key = os.getenv("FLASK_SECRET", "fallback-secret-key")
 
+# ------------------- DB CONNECTION -------------------
 
-
-@app.route("/chat", methods=["POST"])
-def chat():
-    if "user" not in session:
-        return jsonify({"error": "Unauthorized"}), 401
-
-    data = request.json
-    message = data.get("message")
-
-    if not message:
-        return jsonify({"error": "No message received"}), 400
-
-    # Run it through your assistant logic
-    response = ask_assistant(message)
-
-    return jsonify({"reply": response})
-# ----------- DATABASE HANDLER -----------
-
-# Get DB connection with auto reconnect
 def get_db():
     if "db" not in g or not g.db.is_connected():
         g.db = mysql.connector.connect(
@@ -50,18 +28,39 @@ def get_db():
         )
     return g.db
 
-# Get cursor for queries
 def get_cursor():
     return get_db().cursor(dictionary=True)
 
-# Close DB after request
 @app.teardown_appcontext
 def close_db(exception=None):
     db = g.pop("db", None)
     if db and db.is_connected():
         db.close()
 
-# ----------- AUTH -----------
+# ------------------- AUTH ROUTES -------------------
+
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        name = request.form['name']
+        email = request.form['email']
+        password = request.form['password']
+
+        cursor = get_cursor()
+        cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
+        existing_user = cursor.fetchone()
+
+        if existing_user:
+            return render_template("signup.html", error="Email already registered.")
+
+        hashed_pw = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+        cursor.execute("INSERT INTO users (username, email, password) VALUES (%s, %s, %s)", (name, email, hashed_pw))
+        get_db().commit()
+
+        return redirect(url_for("login"))
+
+    return render_template("signup.html")
+
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -108,38 +107,45 @@ def forgot_password():
 
     return render_template("forgot_password.html")
 
-# ----------- HOME / CHAT HISTORY -----------
+# ------------------- CHAT & HOME -------------------
 
-@app.route("/", methods=["GET", "POST"])
+@app.route("/")
 def index():
     if "user" not in session:
         return redirect(url_for("login"))
 
-    search = request.form.get("search")
-    filter = request.form.get("filter")
-    query = "SELECT * FROM chat_history"
-    params = []
     cursor = get_cursor()
-
-    if search:
-        query += " WHERE user_input LIKE %s OR ai_response LIKE %s"
-        params.extend([f"%{search}%", f"%{search}%"])
-    elif filter == "last_24":
-        since = datetime.now() - timedelta(hours=24)
-        query += " WHERE timestamp >= %s"
-        params.append(since)
-    elif filter == "last_7":
-        since = datetime.now() - timedelta(days=7)
-        query += " WHERE timestamp >= %s"
-        params.append(since)
-
-    query += " ORDER BY timestamp DESC"
-    cursor.execute(query, params)
+    cursor.execute("SELECT * FROM chat_history ORDER BY timestamp DESC")
     results = cursor.fetchall()
-
     return render_template("index.html", results=results)
 
-# ----------- EXPORT TO PDF -----------
+@app.route("/assistant-chat")
+def assistant_chat():
+    if "user" not in session:
+        return redirect(url_for("login"))
+    return render_template("chat.html")
+
+@app.route("/chat", methods=["POST"])
+def chat():
+    if "user" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.json
+    message = data.get("message")
+
+    if not message:
+        return jsonify({"error": "No message received"}), 400
+
+    response = ask_assistant(message)
+
+    # Optional: Save to DB
+    cursor = get_cursor()
+    cursor.execute("INSERT INTO chat_history (user_input, ai_response) VALUES (%s, %s)", (message, response))
+    get_db().commit()
+
+    return jsonify({"reply": response})
+
+# ------------------- PDF EXPORT -------------------
 
 @app.route("/export")
 def export_pdf():
@@ -157,7 +163,7 @@ def export_pdf():
 
     return send_file(pdf, as_attachment=True, download_name="chat_history.pdf")
 
-# ----------- STATS CHART -----------
+# ------------------- STATS -------------------
 
 @app.route("/stats")
 def stats():
@@ -172,13 +178,7 @@ def stats():
 
     return render_template("stats.html", dates=dates, counts=counts)
 
-@app.route("/assistant-chat")
-def assistant_chat():
-    if "user" not in session:
-        return redirect(url_for("login"))
-    return render_template("chat.html")
-
-# ----------- RUN FLASK APP -----------
+# ------------------- MAIN -------------------
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))

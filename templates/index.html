@@ -1,63 +1,251 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Assistant Dashboard</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
   <style>
     body {
-      background-color: #f8f9fa;
+      font-family: 'Poppins', sans-serif;
+      background: url('https://img.freepik.com/free-photo/blue-smooth-wall-textured-background_53876-106133.jpg?ga=GA1.1.1294244868.1745738461&semt=ais_hybrid&w=740') no-repeat center center fixed;
+      background-size: cover;
+      color: #fff;
+      min-height: 100vh;
     }
+
+    .glass {
+      background: rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    }
+
     .chat-box {
       border-left: 4px solid #0d6efd;
       padding-left: 10px;
     }
+
     .timestamp {
       font-size: 0.85rem;
-      color: #888;
+      color: #ccc;
+    }
+
+    .list-group-item {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+      border: none;
+    }
+
+    #mic-btn {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      background: #0d6efd;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      font-size: 24px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      z-index: 1000;
+    }
+
+    #mic-btn:active {
+      background: #0b5ed7;
+    }
+
+    .form-control:focus {
+      box-shadow: none !important;
+    }
+
+    .chat-input-wrapper {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    #assistant-output {
+      min-height: 150px;
+      white-space: pre-wrap;
+      font-size: 1.1rem;
+      color: #d4f0ff;
+    }
+
+    #stop-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: none;
     }
   </style>
 </head>
 <body>
-  <div class="container py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <h2>Welcome, {{ session.user }}</h2>
-      <div>
-        <a href="/stats" class="btn btn-outline-primary btn-sm">📊 View Stats</a>
-        <a href="/export" class="btn btn-outline-success btn-sm">📄 Export PDF</a>
-        <a href="/logout" class="btn btn-outline-danger btn-sm">🚪 Logout</a>
+  <div class="container py-5">
+    <div class="glass">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold">👋 Welcome, {{ session.user }}</h3>
+        <div>
+          <a href="/stats" class="btn btn-outline-light btn-sm me-2">📊 Stats</a>
+          <a href="/export" class="btn btn-outline-light btn-sm me-2">📄 Export</a>
+          <a href="/logout" class="btn btn-danger btn-sm">🚪 Logout</a>
+        </div>
       </div>
+
+      <!-- 🧠 Assistant Box -->
+      <div class="mb-4">
+        <div class="p-4 bg-dark text-white rounded shadow position-relative">
+          <strong>🧠 Assistant:</strong>
+          <div id="assistant-output" class="mt-2"></div>
+          <button id="stop-btn" class="btn btn-danger btn-sm">⛔ Stop</button>
+        </div>
+      </div>
+
+      <!-- 🔍 Search -->
+      <form method="POST" class="row g-2 mb-4">
+        <div class="col-md-6">
+          <input type="text" name="search" placeholder="🔍 Search history..." class="form-control" value="{{ request.form.search or '' }}">
+        </div>
+        <div class="col-md-4">
+          <select name="filter" class="form-select">
+            <option value="">📅 All Time</option>
+            <option value="last_24" {% if request.form.filter == 'last_24' %}selected{% endif %}>⏱️ Last 24 Hours</option>
+            <option value="last_7" {% if request.form.filter == 'last_7' %}selected{% endif %}>📆 Last 7 Days</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-primary w-100">Search</button>
+        </div>
+      </form>
+
+      <!-- 🔴 LIVE CHAT -->
+      <div id="live-chat" class="mb-4"></div>
+
+      <!-- 💬 Input -->
+      <form id="chat-form" class="chat-input-wrapper">
+        <input id="chat-input" type="text" class="form-control" placeholder="💬 Ask something..." autocomplete="off" />
+        <button type="submit" class="btn btn-success">Send</button>
+      </form>
+
+      <!-- 🕓 Previous Chats -->
+      {% if results %}
+        <hr class="text-white my-4" />
+        <h5 class="text-white mb-3">🕓 Previous Chats</h5>
+        <div class="list-group">
+          {% for row in results %}
+            <div class="list-group-item mb-3 shadow-sm rounded">
+              <div class="timestamp mb-1">🕒 {{ row.timestamp.strftime('%Y-%m-%d %I:%M %p') }}</div>
+              <div><strong>You:</strong> {{ row.user_input }}</div>
+              <div class="chat-box mt-2"><strong>Assistant:</strong> {{ row.ai_response }}</div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="alert alert-warning mt-4">No chat history found.</div>
+      {% endif %}
     </div>
-
-    <form method="POST" class="row g-2 mb-4">
-      <div class="col-md-6">
-        <input type="text" name="search" placeholder="Search history..." class="form-control" value="{{ request.form.search or '' }}">
-      </div>
-      <div class="col-md-4">
-        <select name="filter" class="form-select">
-          <option value="">All Time</option>
-          <option value="last_24" {% if request.form.filter == 'last_24' %}selected{% endif %}>Last 24 Hours</option>
-          <option value="last_7" {% if request.form.filter == 'last_7' %}selected{% endif %}>Last 7 Days</option>
-        </select>
-      </div>
-      <div class="col-md-2">
-        <button class="btn btn-primary w-100">Search</button>
-      </div>
-    </form>
-
-    {% if results %}
-      <div class="list-group">
-        {% for row in results %}
-          <div class="list-group-item mb-2 shadow-sm">
-            <div class="timestamp mb-1">🕒 {{ row.timestamp.strftime('%Y-%m-%d %I:%M %p') }}</div>
-            <div><strong>You:</strong> {{ row.user_input }}</div>
-            <div class="chat-box mt-2"><strong>Assistant:</strong> {{ row.ai_response }}</div>
-          </div>
-        {% endfor %}
-      </div>
-    {% else %}
-      <div class="alert alert-info">No chat history found.</div>
-    {% endif %}
   </div>
+
+  <!-- 🎙️ Mic -->
+  <button id="mic-btn" title="Speak to Assistant">🎙️</button>
+    <script>
+  const micBtn = document.getElementById('mic-btn');
+  const chatInput = document.getElementById('chat-input');
+  const chatForm = document.getElementById('chat-form');
+  const chatContainer = document.getElementById('live-chat');
+  const assistantOutput = document.getElementById('assistant-output');
+  const stopBtn = document.getElementById('stop-btn');
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition = SpeechRecognition ? new SpeechRecognition() : null;
+  let stopSignal = false;
+
+  if (!recognition) {
+    alert("🎤 Voice recognition not supported");
+    micBtn.disabled = true;
+  } else {
+    recognition.lang = 'en-IN';
+    micBtn.addEventListener('click', () => recognition.start());
+    recognition.onstart = () => { micBtn.innerText = '🎧'; };
+    recognition.onend = () => { micBtn.innerText = '🎙️'; };
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      chatInput.value = transcript;
+      handleSend(transcript);
+    };
+  }
+
+  chatForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const msg = chatInput.value.trim();
+    if (msg) {
+      handleSend(msg);
+    }
+  });
+
+  async function handleSend(message) {
+    appendMessage("You", message);
+    chatInput.value = "";
+    assistantOutput.textContent = "";
+    stopBtn.style.display = "inline-block";
+    stopSignal = false;
+
+    const res = await fetch("/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message })
+    });
+
+    const data = await res.json();
+    if (data.reply) {
+      animateAndSpeak(data.reply);
+    }
+  }
+
+  function appendMessage(sender, msg) {
+    const el = document.createElement("div");
+    el.classList.add("list-group-item", "mb-3", "shadow-sm", "rounded");
+    el.innerHTML = `<strong>${sender}:</strong> ${msg}`;
+    chatContainer.prepend(el);
+  }
+
+  async function animateAndSpeak(text) {
+  const sentences = text.match(/[^\.!\?]+[\.!\?]+/g) || [text];
+  assistantOutput.textContent = "";
+  let i = 0;
+
+  function next() {
+    if (i >= sentences.length || stopSignal) {
+      stopBtn.style.display = "none";
+      return;
+    }
+
+    const sentence = sentences[i].trim();
+    assistantOutput.textContent += sentence + " ";
+    const utter = new SpeechSynthesisUtterance(sentence);
+    utter.lang = 'en-IN';
+    utter.onend = () => {
+      if (!stopSignal) {
+        i++;
+        setTimeout(next, 100);
+      }
+    };
+    speechSynthesis.speak(utter);
+  }
+
+  next();
+}
+
+  stopBtn.addEventListener("click", () => {
+    stopSignal = true;
+    speechSynthesis.cancel();
+    assistantOutput.textContent += "\n⛔ Stopped.";
+    stopBtn.style.display = "none";
+  });
+</script>
 </body>
 </html>

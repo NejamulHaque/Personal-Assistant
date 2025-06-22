@@ -30,19 +30,21 @@
       font-weight: 600;
     }
 
-    .forgot-password {
+    .forgot-password,
+    .signup-text {
       text-align: right;
       font-size: 0.875rem;
-      margin-top: -10px;
-      margin-bottom: 15px;
+      margin-bottom: 10px;
     }
 
-    .forgot-password a {
+    .forgot-password a,
+    .signup-text a {
       color: #0d6efd;
       text-decoration: none;
     }
 
-    .forgot-password a:hover {
+    .forgot-password a:hover,
+    .signup-text a:hover {
       text-decoration: underline;
     }
   </style>
@@ -63,6 +65,10 @@
     </div>
 
     <button class="btn btn-primary w-100">Login</button>
+
+    <div class="signup-text mt-3 text-center">
+      Don't have an account? <a href="{{ url_for('signup') }}">Sign up here</a>
+    </div>
   </form>
 </body>
 </html>

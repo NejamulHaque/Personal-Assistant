@@ -7,7 +7,7 @@ import bcrypt
 import io
 from xhtml2pdf import pisa
 from flask import jsonify
-#from assistant_core import ask_assistant
+from assistant_core import ask_assistant
 
 # Load .env variables
 load_dotenv()

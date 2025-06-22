@@ -1,17 +1,23 @@
 services:
   - type: web
-    name: ai-assistant
-    runtime: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: python app.py
+    name: personal-assistant
+    env: python
+    buildCommand: ""
+    startCommand: gunicorn app:app
     envVars:
-      - key: DB_HOST
-        value: sql5.freesqldatabase.com
-      - key: DB_USER
-        value: sql5786165
-      - key: DB_PASSWORD
-        value: AFih94Xv6L
-      - key: DB_NAME
-        value: sql5786165
+      - key: FLASK_SECRET
+        value: your_secret_key
+      - key: MYSQL_HOST
+        value: your_db_host
+      - key: MYSQL_USER
+        value: your_db_user
+      - key: MYSQL_PASSWORD
+        value: your_db_password
+      - key: MYSQL_DB
+        value: your_db_name
+      - key: GROQ_API_KEY
+        value: your_groq_api_key
+      - key: OPENWEATHER_API
+        value: your_openweather_api_key
       - key: RENDER
         value: true

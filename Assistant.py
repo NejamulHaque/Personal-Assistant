@@ -344,5 +344,8 @@ def main():
                         log_chat(query, response)
 
 
-if __name__ == "__main__":
-    main()
+def ask_assistant(message):
+    # Optional: Log message to terminal or database
+    response = chat_with_gpt_context(message)
+    log_chat(message, response)
+    return response

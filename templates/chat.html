@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Assistant Chat</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+  <style>
+    body {
+      background: #f8f9fa;
+    }
+    #chat-box {
+      height: 70vh;
+      overflow-y: auto;
+      background: white;
+      border-radius: 10px;
+      padding: 1rem;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    .bubble {
+      max-width: 80%;
+      padding: 10px 15px;
+      margin-bottom: 10px;
+      border-radius: 15px;
+    }
+    .user-bubble {
+      background-color: #d1e7dd;
+      align-self: end;
+    }
+    .ai-bubble {
+      background-color: #e2e3e5;
+      align-self: start;
+    }
+    .chat-row {
+      display: flex;
+      flex-direction: column;
+    }
+    #mic-btn {
+      border: none;
+      background: none;
+      font-size: 1.5rem;
+      color: #0d6efd;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body class="p-4">
+
+  <div class="container">
+    <h2 class="text-center mb-3">💬 Assistant Chat</h2>
+    <div id="chat-box" class="mb-3"></div>
+
+    <form id="chat-form" class="d-flex gap-2">
+      <input type="text" id="message" class="form-control" placeholder="Type your message..." required />
+      <button type="submit" class="btn btn-primary">Send</button>
+      <button type="button" id="mic-btn" title="Speak"><i class="bi bi-mic-fill">🎙️</i></button>
+    </form>
+
+    <div class="text-end mt-2">
+      <a href="/" class="btn btn-sm btn-secondary">← Back to Dashboard</a>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById("chat-form");
+    const messageInput = document.getElementById("message");
+    const chatBox = document.getElementById("chat-box");
+
+    function addMessage(text, sender = "user") {
+      const bubble = document.createElement("div");
+      bubble.className = `bubble ${sender === "user" ? "user-bubble" : "ai-bubble"}`;
+      bubble.innerText = text;
+
+      const row = document.createElement("div");
+      row.className = "chat-row";
+      row.appendChild(bubble);
+      chatBox.appendChild(row);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const msg = messageInput.value.trim();
+      if (!msg) return;
+
+      addMessage(msg, "user");
+      messageInput.value = "";
+
+      try {
+        const res = await fetch("/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: msg })
+        });
+        const data = await res.json();
+        addMessage(data.reply || "No response", "ai");
+      } catch (err) {
+        addMessage("⚠️ Error communicating with assistant", "ai");
+      }
+    });
+
+    // 🎙️ Voice input
+    document.getElementById("mic-btn").addEventListener("click", () => {
+      if (!("webkitSpeechRecognition" in window)) {
+        alert("Speech Recognition not supported in this browser.");
+        return;
+      }
+
+      const recognition = new webkitSpeechRecognition();
+      recognition.lang = "en-IN";
+      recognition.interimResults = false;
+      recognition.start();
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        messageInput.value = transcript;
+        form.dispatchEvent(new Event("submit")); // Auto submit
+      };
+
+      recognition.onerror = (event) => {
+        console.error("Speech error", event.error);
+        addMessage("⚠️ Voice input failed", "ai");
+      };
+    });
+  </script>
+</body>
+</html>

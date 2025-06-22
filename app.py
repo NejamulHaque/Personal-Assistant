@@ -6,6 +6,8 @@ from datetime import datetime, timedelta
 import bcrypt
 import io
 from xhtml2pdf import pisa
+from flask import jsonify
+from assistant_core import ask_assistant
 
 # Load .env variables
 load_dotenv()
@@ -17,6 +19,23 @@ if not FLASK_SECRET:
     raise Exception("FLASK_SECRET is not set in .env file")
 app.secret_key = FLASK_SECRET
 
+
+
+@app.route("/chat", methods=["POST"])
+def chat():
+    if "user" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.json
+    message = data.get("message")
+
+    if not message:
+        return jsonify({"error": "No message received"}), 400
+
+    # Run it through your assistant logic
+    response = ask_assistant(message)
+
+    return jsonify({"reply": response})
 # ----------- DATABASE HANDLER -----------
 
 # Get DB connection with auto reconnect
@@ -153,8 +172,14 @@ def stats():
 
     return render_template("stats.html", dates=dates, counts=counts)
 
+@app.route("/assistant-chat")
+def assistant_chat():
+    if "user" not in session:
+        return redirect(url_for("login"))
+    return render_template("chat.html")
+
 # ----------- RUN FLASK APP -----------
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 5001))
     app.run(host="0.0.0.0", port=port, debug=True)

@@ -63,7 +63,7 @@ Your smart, voice-activated AI assistant powered by Python and Flask — built t
     MYSQL_DB=your_database
     SECRET_KEY=your_secret_key
 
-	4.	Run the assistant:
+4.	Run the assistant:
       ```bash
       python app.py
 

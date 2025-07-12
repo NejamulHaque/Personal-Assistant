@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Edit Profile</title>
+  <style>
+    .profile-pic {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid #333;
+    }
+  </style>
+</head>
+<body>
+  <h2>🛠️ Edit Profile</h2>
+
+  <form method="POST" enctype="multipart/form-data">
+    <label>👤 Username:</label><br>
+    <input type="text" name="username" value="{{ user.username }}" required><br><br>
+
+    <label>📧 Email:</label><br>
+    <input type="email" name="email" value="{{ user.email }}" required><br><br>
+
+    <label>🔑 New Password (optional):</label><br>
+    <input type="password" name="password"><br><br>
+
+    <label>🖼️ Profile Picture (Max 2MB, .jpg/.png):</label><br>
+    <input type="file" name="profile_pic" id="profilePicInput" accept="image/*"><br><br>
+
+    <img id="preview" class="profile-pic" src="{{ url_for('static', filename='uploads/' + user.profile_pic) if user.profile_pic else url_for('static', filename='default.jpg') }}"><br><br>
+
+    <button type="submit">💾 Save Changes</button>
+  </form>
+
+  <script>
+    const input = document.getElementById("profilePicInput");
+    const preview = document.getElementById("preview");
+
+    input.addEventListener("change", () => {
+      const file = input.files[0];
+      if (!file) return;
+
+      const validTypes = ["image/jpeg", "image/png", "image/gif"];
+      if (!validTypes.includes(file.type)) {
+        alert("❌ Only .jpg, .png, .gif allowed");
+        input.value = "";
+        return;
+      }
+
+      if (file.size > 2 * 1024 * 1024) {
+        alert("❌ File too large (max 2MB)");
+        input.value = "";
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => preview.src = e.target.result;
+      reader.readAsDataURL(file);
+    });
+  </script>
+</body>
+</html>

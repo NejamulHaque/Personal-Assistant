@@ -14,6 +14,21 @@ from assistant_core import ask_assistant
 # Load environment variables
 load_dotenv()
 
+app = Flask(__name__)
+
+@app.route("/")
+def home():
+    return "✅ Assistant is running."
+
+@app.route("/ask", methods=["POST"])
+def ask():
+    data = request.get_json()
+    user_input = data.get("message")
+    return jsonify({"reply": f"You said: {user_input}"})
+
+if __name__ == "__main__":
+    app.run(debug=True)
+
 # ✅ App setup
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET", "fallback-secret-key")

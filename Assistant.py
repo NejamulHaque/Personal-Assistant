@@ -286,9 +286,21 @@ def main():
     while True:
         print("Waiting for wake word...")
         wake_query = take_command()
+        
+        # Wake word check
         if wake_query and "hey assistant" in wake_query:
             speak("Yes Nejamul, I am listening.")
-            query = take_command()
+            
+            # Extract query after wake word (optional)
+            command = wake_query.replace("hey assistant", "").strip()
+
+            if command:
+                # User already said command with wake word
+                query = command
+            else:
+                # Ask for next input
+                query = take_command()
+
             if query:
                 if 'exit' in query or 'quit' in query:
                     speak("Goodbye Nejamul Haque! Have a nice day.")
@@ -304,5 +316,9 @@ def main():
 
 def ask_assistant(message):
     response = chat_with_gpt_context(message)
-    log_chat(message, response)
+    if response and response != "Error":
+        speak(response)
+        log_chat(message, response)
     return response
+if __name__ == "__main__":
+    main()

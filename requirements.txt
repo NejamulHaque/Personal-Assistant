@@ -24,7 +24,7 @@ fire==0.7.0
 Flask==3.1.0
 Flask-Login==0.6.3
 Flask-SQLAlchemy==3.1.1
-flask-mysqldb==1.0.1
+#flask-mysqldb==1.0.1
 fpdf==1.7.2
 groq==0.28.0
 html2pdf==0.1
